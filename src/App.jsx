@@ -2,11 +2,10 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Truck, AlertTriangle, CheckCircle2, Lock, Plus, Search, 
   RefreshCw, Layers, LayoutGrid, Smartphone, User, Globe, 
-  ArrowRightLeft, PackageOpen, ShieldAlert, Radio, Send
+  ArrowRightLeft, PackageOpen, ShieldAlert, Radio, Send, X
 } from 'lucide-react';
 
 // --- CONFIGURACIÓN DE COLORES Y ESTADOS OPERATIVOS ---
-// Matriz de colores diseñada para contraste inmediato en piso y monitor
 const STATUS_CONFIG = {
   AVAILABLE: {
     id: 'AVAILABLE',
@@ -37,7 +36,7 @@ const STATUS_CONFIG = {
   },
   OCCUPIED_EMPTY: {
     id: 'OCCUPIED_EMPTY',
-    colorBg: 'bg-cyan-500', // Color distintivo de alta visibilidad para retorno a México
+    colorBg: 'bg-cyan-500', // Color distintivo para retorno a México
     colorBorder: 'border-cyan-400',
     colorText: 'text-cyan-300',
     badgeBg: 'bg-cyan-950/90 border-cyan-400 text-cyan-200',
@@ -70,7 +69,7 @@ const LOAD_TYPES = [
   { id: 'LIVELOAD', es: 'Live Load (Carga en Vivo)', en: 'Live Load' }
 ];
 
-// Generador de estructura inicial de Bodegas 4 y 5
+// Generador de estructura inicial para Bodegas 4 y 5
 const generateInitialLocations = () => {
   const locs = [];
   // Bodega 4: Rampas 1-44, Yarda 1-50
@@ -88,7 +87,6 @@ const generateInitialLocations = () => {
     locs.push({ id: `B5-Y-${i}`, building: 5, zone: 'YARD', number: i, status: 'AVAILABLE', trailer: '', loadState: 'EMPTY', loadType: 'INBOUND', operator: '', discrepancyMsg: '', updatedBy: 'System', updatedAt: '' });
   }
 
-  // Datos de demostración realistas para visualizar todos los estados inmediatamente
   const demoOverrides = [
     { id: 'B4-D-1', status: 'WORKING', trailer: 'TRL-8842', loadState: 'LOADED', loadType: 'INBOUND', operator: 'J. Gómez', updatedBy: 'J. Gómez', updatedAt: '16:15' },
     { id: 'B4-D-3', status: 'DISABLED', trailer: '', loadState: 'EMPTY', loadType: 'INBOUND', operator: '', updatedBy: 'A. Pichardo', updatedAt: '14:00' },
@@ -108,75 +106,61 @@ const generateInitialLocations = () => {
 };
 
 export default function YMSApp() {
-  // --- ESTADOS GLOBALES Y MULTI-NODO ---
   const [lang, setLang] = useState('ES');
   const [activeOperator, setActiveOperator] = useState('A. Pichardo (Sup)');
   const [building, setBuilding] = useState(4);
-  const [zone, setZone] = useState('DOCK'); // 'DOCK' | 'YARD'
-  const [viewMode, setViewMode] = useState('MOBILE'); // 'MOBILE' | 'MATRIX'
-  const [filterMode, setFilterMode] = useState('ALL'); // 'ALL' | 'EMPTY_MX' | 'PRELOAD_LIVE' | 'DISCREPANCY'
+  const [zone, setZone] = useState('DOCK');
+  const [viewMode, setViewMode] = useState('MOBILE');
+  const [filterMode, setFilterMode] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
 
   const [locations, setLocations] = useState(() => {
-    const saved = localStorage.getItem('yms_locations_v2');
+    const saved = localStorage.getItem('yms_locations_v3');
     return saved ? JSON.parse(saved) : generateInitialLocations();
   });
 
   const [overflowList, setOverflowList] = useState(() => {
-    const saved = localStorage.getItem('yms_overflow_v2');
+    const saved = localStorage.getItem('yms_overflow_v3');
     return saved ? JSON.parse(saved) : [
       { id: 'OV-1', building: 4, trailer: 'TRL-9912', refPosition: 'En frente de Rampa 5', loadState: 'LOADED', loadType: 'INBOUND', updatedBy: 'J. Gómez', updatedAt: '16:12' },
       { id: 'OV-2', building: 4, trailer: 'MX-2049', refPosition: 'Pasillo Central Yarda 12', loadState: 'EMPTY', loadType: 'PRELOAD', updatedBy: 'R. Silva', updatedAt: '16:28' }
     ];
   });
 
-  const [activityLog, setActivityLog] = useState([
-    { time: '16:40', user: 'A. Castro', action: 'Rampa 1002 -> En Operación (Preload Trlr)' },
-    { time: '16:35', user: 'D. Ríos', action: 'Rampa 1001 -> VACÍO (Listo para Chofer MX)' }
-  ]);
-
-  // Modal de Edición / Asignación
   const [editingLoc, setEditingLoc] = useState(null);
   const [overflowModal, setOverflowModal] = useState(false);
 
-  // --- MOTOR DE SINCRONIZACIÓN EN TIEMPO REAL (BROADCAST CHANNEL + STORAGE) ---
-  // Permite que múltiples pestañas/dispositivos en la misma red o base de datos se actualicen al instante
   useEffect(() => {
-    localStorage.setItem('yms_locations_v2', JSON.stringify(locations));
-    localStorage.setItem('yms_overflow_v2', JSON.stringify(overflowList));
+    localStorage.setItem('yms_locations_v3', JSON.stringify(locations));
+    localStorage.setItem('yms_overflow_v3', JSON.stringify(overflowList));
   }, [locations, overflowList]);
 
+  // Canal de difusión sincronizado entre pestañas del mismo dispositivo
   useEffect(() => {
-    const channel = new BroadcastChannel('yms_realtime_sync_channel');
+    const channel = new BroadcastChannel('yms_realtime_channel_v3');
     channel.onmessage = (event) => {
       if (event.data.type === 'SYNC_LOCATIONS') setLocations(event.data.payload);
       if (event.data.type === 'SYNC_OVERFLOW') setOverflowList(event.data.payload);
-      if (event.data.type === 'SYNC_LOG') setActivityLog(prev => [event.data.payload, ...prev.slice(0, 19)]);
     };
     return () => channel.close();
   }, []);
 
-  const broadcastUpdate = (newLocs, logEntry) => {
+  const broadcastUpdate = (newLocs) => {
     setLocations(newLocs);
-    const channel = new BroadcastChannel('yms_realtime_sync_channel');
+    const channel = new BroadcastChannel('yms_realtime_channel_v3');
     channel.postMessage({ type: 'SYNC_LOCATIONS', payload: newLocs });
-    if (logEntry) {
-      setActivityLog(prev => [logEntry, ...prev.slice(0, 19)]);
-      channel.postMessage({ type: 'SYNC_LOG', payload: logEntry });
-    }
     channel.close();
   };
 
-  // --- FUNCIONES DE ACTUALIZACIÓN DE ESTADO DE TRAILERS ---
   const nowTime = () => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
 
   const handleSaveLocation = (e) => {
     e.preventDefault();
     const formData = new FormData(e.target);
     const trailer = formData.get('trailer').trim().toUpperCase();
-    const loadState = formData.get('loadState'); // 'LOADED' | 'EMPTY'
-    const loadType = formData.get('loadType');   // 'INBOUND' | 'PRELOAD' | 'LIVELOAD'
-    const opState = formData.get('opState');     // 'STATIC' | 'WORKING' | 'DISCREPANCY' | 'DISABLED' | 'FREE'
+    const loadState = formData.get('loadState');
+    const loadType = formData.get('loadType');
+    const opState = formData.get('opState');
     const operator = formData.get('operator').trim() || activeOperator;
     const discrepancyMsg = formData.get('discrepancyMsg')?.trim() || '';
 
@@ -203,17 +187,10 @@ export default function YMSApp() {
       };
     });
 
-    const logEntry = {
-      time: nowTime(),
-      user: activeOperator,
-      action: `${editingLoc.zone} ${editingLoc.number} (B${editingLoc.building}): ${trailer || 'Libre'} -> ${STATUS_CONFIG[newStatus].labelES}`
-    };
-
-    broadcastUpdate(updatedLocs, logEntry);
+    broadcastUpdate(updatedLocs);
     setEditingLoc(null);
   };
 
-  // Acción rápida de 1 toque para marcar Trailer como VACÍO (Listo para Chofer México)
   const quickMarkEmptyForMexico = (loc) => {
     const updatedLocs = locations.map(l => {
       if (l.id !== loc.id) return l;
@@ -225,14 +202,9 @@ export default function YMSApp() {
         updatedAt: nowTime()
       };
     });
-    broadcastUpdate(updatedLocs, {
-      time: nowTime(),
-      user: activeOperator,
-      action: `${loc.zone} ${loc.number}: ${loc.trailer} marcado VACÍO para Chofer MX`
-    });
+    broadcastUpdate(updatedLocs);
   };
 
-  // Acción rápida para despachar/liberar un trailer vacío que se lleva el chofer de México
   const quickReleaseToDriver = (loc) => {
     const updatedLocs = locations.map(l => {
       if (l.id !== loc.id) return l;
@@ -247,14 +219,9 @@ export default function YMSApp() {
         updatedAt: nowTime()
       };
     });
-    broadcastUpdate(updatedLocs, {
-      time: nowTime(),
-      user: activeOperator,
-      action: `${loc.zone} ${loc.number}: Trailer ${loc.trailer} entregado a Chofer MX (Lugar Libre)`
-    });
+    broadcastUpdate(updatedLocs);
   };
 
-  // Agregar trailer en Sobreflujo / Desbordamiento
   const handleAddOverflow = (e) => {
     e.preventDefault();
     const formData = new FormData(e.target);
@@ -270,13 +237,12 @@ export default function YMSApp() {
     };
     const nextOv = [newOv, ...overflowList];
     setOverflowList(nextOv);
-    const channel = new BroadcastChannel('yms_realtime_sync_channel');
+    const channel = new BroadcastChannel('yms_realtime_channel_v3');
     channel.postMessage({ type: 'SYNC_OVERFLOW', payload: nextOv });
     channel.close();
     setOverflowModal(false);
   };
 
-  // --- MÉTRICAS Y FILTRADO OPERATIVO ---
   const stats = useMemo(() => {
     const bLocs = locations.filter(l => l.building === building);
     return {
@@ -301,10 +267,7 @@ export default function YMSApp() {
       if (filterMode === 'DISCREPANCY' && loc.status !== 'DISCREPANCY') return false;
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
-        const matchNum = String(loc.number).includes(q);
-        const matchTrl = loc.trailer.toLowerCase().includes(q);
-        const matchOp = loc.operator.toLowerCase().includes(q);
-        return matchNum || matchTrl || matchOp;
+        return String(loc.number).includes(q) || loc.trailer.toLowerCase().includes(q) || loc.operator.toLowerCase().includes(q);
       }
       return true;
     });
@@ -312,7 +275,7 @@ export default function YMSApp() {
 
   return (
     <div className="min-h-screen bg-[#0b0a0e] text-white font-sans pb-24 select-none">
-      {/* BARRA SUPERIOR: NODO ACTIVO, SINCRONIZACIÓN E IDIOMA */}
+      {/* BARRA SUPERIOR */}
       <header className="sticky top-0 z-30 bg-[#12101b]/95 backdrop-blur border-b border-purple-900/40 px-4 py-3">
         <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-3">
@@ -330,7 +293,6 @@ export default function YMSApp() {
             </div>
           </div>
 
-          {/* Selector de Operador / Montacarguista Activo + Idioma */}
           <div className="flex items-center gap-2">
             <div className="flex items-center bg-[#1b1829] border border-purple-800/50 rounded-lg px-2.5 py-1.5 text-xs">
               <User className="h-3.5 w-3.5 text-purple-400 mr-1.5" />
@@ -361,7 +323,7 @@ export default function YMSApp() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 pt-4 space-y-4">
-        {/* PANEL CRÍTICO DE DESPACHO: TRAILERS VACÍOS LISTOS PARA CHOFERES DE MÉXICO */}
+        {/* PANEL DE RETORNO MÉXICO (CAJAS VACÍAS) */}
         <div className="bg-gradient-to-r from-cyan-950/70 via-[#151221] to-purple-950/50 border border-cyan-500/40 rounded-xl p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg">
           <div className="flex items-center gap-3">
             <div className="h-11 w-11 rounded-xl bg-cyan-500/20 border border-cyan-400 flex items-center justify-center shrink-0">
@@ -399,14 +361,13 @@ export default function YMSApp() {
           </button>
         </div>
 
-        {/* CONTROLES DE BODEGA, ZONA (DOCKS / YARDA) Y MODO DE VISTA */}
+        {/* SELECTORES DE BODEGA, DOCK/YARD Y MODOS DE VISTA */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          {/* Selector Bodega 4 / Bodega 5 */}
           <div className="bg-[#161321] p-1 rounded-xl border border-zinc-800 flex">
             <button
               onClick={() => setBuilding(4)}
               className={`flex-1 py-2.5 rounded-lg font-bold text-sm transition ${
-                building === 4 ? 'bg-purple-600 text-white shadow-md shadow-purple-600/30' : 'text-zinc-400 hover:text-white'
+                building === 4 ? 'bg-purple-600 text-white shadow-md' : 'text-zinc-400 hover:text-white'
               }`}
             >
               BODEGA 4 <span className="text-xs font-normal opacity-80">(D:1-44 | Y:1-50)</span>
@@ -414,14 +375,13 @@ export default function YMSApp() {
             <button
               onClick={() => setBuilding(5)}
               className={`flex-1 py-2.5 rounded-lg font-bold text-sm transition ${
-                building === 5 ? 'bg-purple-600 text-white shadow-md shadow-purple-600/30' : 'text-zinc-400 hover:text-white'
+                building === 5 ? 'bg-purple-600 text-white shadow-md' : 'text-zinc-400 hover:text-white'
               }`}
             >
               BODEGA 5 <span className="text-xs font-normal opacity-80">(D:1001-1038 | Y:51-99)</span>
             </button>
           </div>
 
-          {/* Selector Rampas / Yarda */}
           <div className="bg-[#161321] p-1 rounded-xl border border-zinc-800 flex">
             <button
               onClick={() => setZone('DOCK')}
@@ -441,22 +401,12 @@ export default function YMSApp() {
             </button>
           </div>
 
-          {/* Selector Vista Tarjetas (Celular) vs Matriz (Location Center) */}
           <div className="bg-[#161321] p-1 rounded-xl border border-zinc-800 flex">
             <button
               onClick={() => setViewMode('MOBILE')}
               className={`flex-1 py-2.5 rounded-lg font-bold text-xs flex items-center justify-center gap-1.5 transition ${
-                viewMode === 'MOBILE' ? 'bg-purple-600 text-white' : 'text-zinc-400 hover:text-white'
-              }`}
-            >
-              <Smartphone className="h-4 w-4" />
-              {lang === 'ES' ? 'Vista Montacargas (Tarjetas)' : 'Forklift View (Cards)'}
-            </button>
-            <button
-              onClick={() => setViewMode('MATRIX')}
-              className={`flex-1 py-2.5 rounded-lg font-bold text-xs flex items-center justify-center gap-1.5 transition ${
                 viewMode === 'MATRIX' ? 'bg-purple-600 text-white' : 'text-zinc-400 hover:text-white'
-              }`}
+                }`}
             >
               <LayoutGrid className="h-4 w-4" />
               {lang === 'ES' ? 'Location Center (Matriz)' : 'Location Center (Matrix)'}
@@ -464,7 +414,7 @@ export default function YMSApp() {
           </div>
         </div>
 
-        {/* LEYENDA DE COLORES Y FILTROS RÁPIDOS (DIFERENCIACIÓN DE CAJAS VACÍAS Y PRELOAD/LIVE LOAD) */}
+        {/* LEYENDA Y FILTROS */}
         <div className="bg-[#15131f] border border-zinc-800/90 rounded-xl p-3 flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2 text-xs">
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-zinc-900 border border-zinc-700">
@@ -473,27 +423,22 @@ export default function YMSApp() {
             </span>
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-zinc-900 border border-zinc-700">
               <span className="h-3 w-3 rounded-sm bg-red-600 inline-block"></span>
-              {lang === 'ES' ? 'Ocupado (Cargado)' : 'Occupied (Loaded)'}: <b>{stats.occupiedLoaded}</b>
+              {lang === 'ES' ? 'Cargado' : 'Loaded'}: <b>{stats.occupiedLoaded}</b>
             </span>
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-cyan-950/90 border border-cyan-400 text-cyan-200 font-semibold">
               <span className="h-3 w-3 rounded-sm bg-cyan-400 inline-block"></span>
-              {lang === 'ES' ? 'VACÍO (Para Chofer MX)' : 'EMPTY (For MX Driver)'}: <b>{stats.emptyMX}</b>
+              {lang === 'ES' ? 'VACÍO (Chofer MX)' : 'EMPTY (MX Driver)'}: <b>{stats.emptyMX}</b>
             </span>
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-zinc-900 border border-zinc-700">
               <span className="h-3 w-3 rounded-sm bg-blue-600 inline-block"></span>
-              {lang === 'ES' ? 'Cargando / Descargando' : 'Working'}: <b>{stats.working}</b>
+              {lang === 'ES' ? 'Cargando/Descargando' : 'Working'}: <b>{stats.working}</b>
             </span>
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-zinc-900 border border-zinc-700">
               <span className="h-3 w-3 rounded-sm bg-amber-500 inline-block"></span>
               {lang === 'ES' ? 'Discrepancia' : 'Discrepancy'}: <b>{stats.discrepancy}</b>
             </span>
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-zinc-900 border border-zinc-700">
-              <span className="h-3 w-3 rounded-sm bg-zinc-200 inline-block"></span>
-              {lang === 'ES' ? 'Inhabilitada' : 'Disabled'}: <b>{stats.disabled}</b>
-            </span>
           </div>
 
-          {/* Buscador + Filtro Preload / Live Load */}
           <div className="flex items-center gap-2 w-full sm:w-auto">
             <button
               onClick={() => setFilterMode(filterMode === 'PRELOAD_LIVE' ? 'ALL' : 'PRELOAD_LIVE')}
@@ -511,23 +456,20 @@ export default function YMSApp() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder={lang === 'ES' ? 'Buscar #Rampa, Trlr, Operador...' : 'Search Dock, Trlr, Operator...'}
+                placeholder={lang === 'ES' ? 'Buscar #Rampa, Trlr...' : 'Search Dock, Trlr...'}
                 className="w-full bg-[#0e0c14] border border-zinc-700 rounded-lg pl-8 pr-3 py-1.5 text-xs text-white focus:outline-none focus:border-purple-500"
               />
             </div>
           </div>
         </div>
 
-        {/* VISTA 1: MATRIZ VISUAL (LOCATION CENTER CON DIFERENCIACIÓN DE VACÍOS EN CYAN) */}
+        {/* VISTA 1: LOCATION CENTER (MATRIZ DE COLORES) */}
         {viewMode === 'MATRIX' && (
           <div className="bg-[#151221] border border-zinc-800 rounded-2xl p-4 space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="font-bold text-base tracking-wide uppercase text-zinc-200">
                 BUILDING {building} — {zone === 'DOCK' ? 'DOCK OVERVIEW' : 'YARD OVERVIEW'}
               </h2>
-              <span className="text-xs text-zinc-400">
-                {lang === 'ES' ? 'Toca cualquier cuadro para actualizar trailer o estado' : 'Tap any square to update trailer or status'}
-              </span>
             </div>
 
             <div className="grid grid-cols-4 sm:grid-cols-8 md:grid-cols-11 gap-2">
@@ -539,9 +481,8 @@ export default function YMSApp() {
                     onClick={() => setEditingLoc(loc)}
                     className={`${cfg.colorBg} rounded-lg p-2 flex flex-col items-center justify-between min-h-[70px] shadow-md hover:scale-105 transition relative overflow-hidden border ${cfg.colorBorder}`}
                   >
-                    {/* Etiqueta superior de modalidad si es Preload o Live Load */}
                     {loc.trailer && loc.loadType !== 'INBOUND' && (
-                      <span className="text-[9px] font-black uppercase tracking-tighter bg-black/60 text-purple-200 px-1.5 py-0.2 rounded">
+                      <span className="text-[9px] font-black uppercase tracking-tighter bg-black/60 text-purple-200 px-1 py-0.2 rounded">
                         {loc.loadType}
                       </span>
                     )}
@@ -561,8 +502,7 @@ export default function YMSApp() {
             </div>
           </div>
         )}
-
-        {/* VISTA 2: TARJETAS MÓVILES PARA MONTACARGUISTAS */}
+        {/* VISTA 2: TARJETAS MÓVILES */}
         {viewMode === 'MOBILE' && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
             {filteredLocations.map(loc => {
@@ -641,7 +581,6 @@ export default function YMSApp() {
                           <span className="font-semibold text-zinc-200">{loc.operator || 'Sin asignar'}</span>
                         </div>
                       </div>
-
                       {loc.discrepancyMsg && (
                         <div className="bg-amber-950/60 border border-amber-500/60 text-amber-200 px-3 py-1.5 rounded-lg text-xs flex items-center gap-2">
                           <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0" />
@@ -649,7 +588,6 @@ export default function YMSApp() {
                         </div>
                       )}
 
-                      {/* Botones de Acción Rápida para Montacarguistas */}
                       <div className="flex flex-wrap gap-1.5 pt-1">
                         <button
                           onClick={() => setEditingLoc(loc)}
@@ -662,7 +600,6 @@ export default function YMSApp() {
                           <button
                             onClick={() => quickMarkEmptyForMexico(loc)}
                             className="flex-1 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-extrabold text-xs py-2 px-3 rounded-lg transition"
-                            title="Marcar trailer como descargado y vacío listo para chofer de México"
                           >
                             {lang === 'ES' ? '✓ Marcar VACÍO (MX)' : '✓ Mark EMPTY (MX)'}
                           </button>
@@ -685,7 +622,7 @@ export default function YMSApp() {
           </div>
         )}
 
-        {/* SECCIÓN DE SOBREFLUJO / DESBORDAMIENTO EN YARDA */}
+        {/* SECCIÓN DE SOBREFLUJO EN YARDA */}
         <div className="bg-[#18121e] border-2 border-amber-500/60 rounded-2xl p-4 space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
@@ -696,8 +633,8 @@ export default function YMSApp() {
               </h3>
               <p className="text-xs text-zinc-400">
                 {lang === 'ES'
-                  ? 'Trailers estacionados frente a otros lugares ocupados o en pasillos sin cajón asignado'
-                  : 'Trailers parked in front of occupied spots or aisles without an assigned slot'}
+                  ? 'Trailers estacionados frente a otros lugares ocupados o en pasillos'
+                  : 'Trailers parked in front of occupied spots or aisles'}
               </p>
             </div>
             <button
@@ -738,8 +675,7 @@ export default function YMSApp() {
           </div>
         </div>
       </main>
-
-      {/* MODAL PARA ASIGNAR / EDITAR RAMPA O LUGAR DE YARDA */}
+      {/* MODAL PARA ASIGNAR / EDITAR RAMPA O LUGAR */}
       {editingLoc && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
           <form onSubmit={handleSaveLocation} className="bg-[#161324] border border-purple-700/60 rounded-2xl max-w-md w-full p-5 space-y-4 shadow-2xl">
@@ -747,7 +683,9 @@ export default function YMSApp() {
               <h3 className="font-extrabold text-lg">
                 Bodega {editingLoc.building} • {editingLoc.zone === 'DOCK' ? 'Rampa' : 'Yarda'} {editingLoc.number}
               </h3>
-              <button type="button" onClick={() => setEditingLoc(null)} className="text-zinc-400 hover:text-white text-sm font-bold">✕</button>
+              <button type="button" onClick={() => setEditingLoc(null)} className="text-zinc-400 hover:text-white text-sm font-bold">
+                <X className="h-5 w-5" />
+              </button>
             </div>
 
             <div className="space-y-3 text-xs">
@@ -823,12 +761,11 @@ export default function YMSApp() {
                 <input
                   name="discrepancyMsg"
                   defaultValue={editingLoc.discrepancyMsg}
-                  placeholder="Ej. Sello no coincide con BOL / Mercancía caída"
+                  placeholder="Ej. Sello no coincide / Mercancía caída"
                   className="w-full bg-[#0d0b14] border border-zinc-700 rounded-lg px-3 py-2 text-white"
                 />
               </div>
             </div>
-
             <div className="flex gap-2 pt-2">
               <button
                 type="button"
@@ -841,7 +778,7 @@ export default function YMSApp() {
                 type="submit"
                 className="flex-1 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-lg shadow-purple-600/30"
               >
-                Guardar y Sincronizar Nodos
+                Guardar y Sincronizar
               </button>
             </div>
           </form>
@@ -878,8 +815,9 @@ export default function YMSApp() {
               <button type="button" onClick={() => setOverflowModal(false)} className="flex-1 py-2 rounded-xl bg-zinc-800 text-zinc-300 font-bold text-xs">Cancelar</button>
               <button type="submit" className="flex-1 py-2 rounded-xl bg-amber-500 text-slate-950 font-extrabold text-xs">Guardar Sobreflujo</button>
             </div>
-          </div>
-        )}
+          </form>
+        </div>
+      )}
     </div>
   );
 }
