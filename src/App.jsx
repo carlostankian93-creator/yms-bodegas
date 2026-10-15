@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Truck, AlertTriangle, CheckCircle2, Lock, Plus, Search, 
   RefreshCw, Layers, LayoutGrid, Smartphone, User, Globe, 
-  ArrowRightLeft, PackageOpen, ShieldAlert, Radio, Send
+  ArrowRightLeft, PackageOpen, Radio
 } from 'lucide-react';
 
 const STATUS_CONFIG = {
@@ -140,7 +140,7 @@ export default function YMSApp() {
     return () => channel.close();
   }, []);
 
-  const broadcastUpdate = (newLocs, logEntry) => {
+  const broadcastUpdate = (newLocs) => {
     setLocations(newLocs);
     const channel = new BroadcastChannel('yms_realtime_sync_channel');
     channel.postMessage({ type: 'SYNC_LOCATIONS', payload: newLocs });
@@ -416,4 +416,4 @@ export default function YMSApp() {
         </div>
 
         <div className="bg-[#15131f] border border-zinc-800/90 rounded-xl p-3 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex f
+          <div className="flex flex-wrap items-center gap-2 t
