@@ -2,41 +2,42 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Truck, AlertTriangle, CheckCircle2, Lock, Plus, Search, 
   RefreshCw, Layers, LayoutGrid, Smartphone, User, Globe, 
-  ArrowRightLeft, PackageOpen, ShieldAlert, Radio, Send, X
+  ArrowRightLeft, PackageOpen, ShieldAlert, Radio, Send, X, ArrowUpRight
 } from 'lucide-react';
 
-// --- CONFIGURACIÓN DE COLORES Y ESTADOS OPERATIVOS ---
+// --- PALETA DE COLORES Y ESTADOS OPERATIVOS ---
 const STATUS_CONFIG = {
   AVAILABLE: {
     id: 'AVAILABLE',
-    colorBg: 'bg-emerald-600',
+    colorBg: 'bg-emerald-600 hover:bg-emerald-500',
     colorBorder: 'border-emerald-500',
     colorText: 'text-emerald-400',
-    badgeBg: 'bg-emerald-950/80 border-emerald-500/50 text-emerald-300',
+    badgeBg: 'bg-emerald-950/90 border-emerald-500/60 text-emerald-300',
     labelES: 'Habilitada / Libre',
     labelEN: 'Available / Free'
   },
   OCCUPIED_LOADED: {
     id: 'OCCUPIED_LOADED',
-    colorBg: 'bg-red-600',
+    colorBg: 'bg-red-600 hover:bg-red-500',
     colorBorder: 'border-red-500',
     colorText: 'text-red-400',
-    badgeBg: 'bg-red-950/80 border-red-500/50 text-red-300',
+    badgeBg: 'bg-red-950/90 border-red-500/60 text-red-300',
     labelES: 'Ocupado (Cargado)',
     labelEN: 'Occupied (Loaded)'
   },
   WORKING: {
     id: 'WORKING',
-    colorBg: 'bg-blue-600',
+    colorBg: 'bg-blue-600 hover:bg-blue-500',
     colorBorder: 'border-blue-400',
     colorText: 'text-blue-400',
-    badgeBg: 'bg-blue-950/80 border-blue-400/50 text-blue-300',
+    badgeBg: 'bg-blue-950/90 border-blue-400/60 text-blue-300',
     labelES: 'En Operación (Carga/Descarga)',
     labelEN: 'In Progress (Load/Unload)'
   },
   OCCUPIED_EMPTY: {
     id: 'OCCUPIED_EMPTY',
-    colorBg: 'bg-cyan-500', // Color distintivo para retorno a México
+    // Color Cyan / Turquesa de alta visibilidad para retorno a México
+    colorBg: 'bg-cyan-500 hover:bg-cyan-400 text-slate-950', 
     colorBorder: 'border-cyan-400',
     colorText: 'text-cyan-300',
     badgeBg: 'bg-cyan-950/90 border-cyan-400 text-cyan-200',
@@ -45,7 +46,7 @@ const STATUS_CONFIG = {
   },
   DISCREPANCY: {
     id: 'DISCREPANCY',
-    colorBg: 'bg-amber-500',
+    colorBg: 'bg-amber-500 hover:bg-amber-400 text-slate-950',
     colorBorder: 'border-amber-400',
     colorText: 'text-amber-300',
     badgeBg: 'bg-amber-950/90 border-amber-400 text-amber-200',
@@ -54,7 +55,7 @@ const STATUS_CONFIG = {
   },
   DISABLED: {
     id: 'DISABLED',
-    colorBg: 'bg-zinc-200 text-zinc-900',
+    colorBg: 'bg-zinc-200 text-zinc-950 hover:bg-zinc-300',
     colorBorder: 'border-zinc-400',
     colorText: 'text-zinc-400',
     badgeBg: 'bg-zinc-800 border-zinc-500 text-zinc-300',
@@ -62,7 +63,6 @@ const STATUS_CONFIG = {
     labelEN: 'Disabled / Maintenance'
   }
 };
-
 const LOAD_TYPES = [
   { id: 'INBOUND', es: 'Descarga (Inbound)', en: 'Inbound Unload' },
   { id: 'PRELOAD', es: 'Preload Trlr (Carga Previa)', en: 'Preload Trlr' },
@@ -87,6 +87,7 @@ const generateInitialLocations = () => {
     locs.push({ id: `B5-Y-${i}`, building: 5, zone: 'YARD', number: i, status: 'AVAILABLE', trailer: '', loadState: 'EMPTY', loadType: 'INBOUND', operator: '', discrepancyMsg: '', updatedBy: 'System', updatedAt: '' });
   }
 
+  // Demostración inicial con trailers reales
   const demoOverrides = [
     { id: 'B4-D-1', status: 'WORKING', trailer: 'TRL-8842', loadState: 'LOADED', loadType: 'INBOUND', operator: 'J. Gómez', updatedBy: 'J. Gómez', updatedAt: '16:15' },
     { id: 'B4-D-3', status: 'DISABLED', trailer: '', loadState: 'EMPTY', loadType: 'INBOUND', operator: '', updatedBy: 'A. Pichardo', updatedAt: '14:00' },
@@ -109,18 +110,18 @@ export default function YMSApp() {
   const [lang, setLang] = useState('ES');
   const [activeOperator, setActiveOperator] = useState('A. Pichardo (Sup)');
   const [building, setBuilding] = useState(4);
-  const [zone, setZone] = useState('DOCK');
-  const [viewMode, setViewMode] = useState('MOBILE');
-  const [filterMode, setFilterMode] = useState('ALL');
+  const [zone, setZone] = useState('DOCK'); // 'DOCK' | 'YARD'
+  const [viewMode, setViewMode] = useState('MOBILE'); // 'MOBILE' | 'MATRIX'
+  const [filterMode, setFilterMode] = useState('ALL'); // 'ALL' | 'EMPTY_MX' | 'PRELOAD_LIVE' | 'DISCREPANCY'
   const [searchQuery, setSearchQuery] = useState('');
 
   const [locations, setLocations] = useState(() => {
-    const saved = localStorage.getItem('yms_locations_v3');
+    const saved = localStorage.getItem('yms_locations_v4');
     return saved ? JSON.parse(saved) : generateInitialLocations();
   });
 
   const [overflowList, setOverflowList] = useState(() => {
-    const saved = localStorage.getItem('yms_overflow_v3');
+    const saved = localStorage.getItem('yms_overflow_v4');
     return saved ? JSON.parse(saved) : [
       { id: 'OV-1', building: 4, trailer: 'TRL-9912', refPosition: 'En frente de Rampa 5', loadState: 'LOADED', loadType: 'INBOUND', updatedBy: 'J. Gómez', updatedAt: '16:12' },
       { id: 'OV-2', building: 4, trailer: 'MX-2049', refPosition: 'Pasillo Central Yarda 12', loadState: 'EMPTY', loadType: 'PRELOAD', updatedBy: 'R. Silva', updatedAt: '16:28' }
@@ -131,13 +132,13 @@ export default function YMSApp() {
   const [overflowModal, setOverflowModal] = useState(false);
 
   useEffect(() => {
-    localStorage.setItem('yms_locations_v3', JSON.stringify(locations));
-    localStorage.setItem('yms_overflow_v3', JSON.stringify(overflowList));
+    localStorage.setItem('yms_locations_v4', JSON.stringify(locations));
+    localStorage.setItem('yms_overflow_v4', JSON.stringify(overflowList));
   }, [locations, overflowList]);
 
-  // Canal de difusión sincronizado entre pestañas del mismo dispositivo
+  // Sincronización entre pestañas en tiempo real
   useEffect(() => {
-    const channel = new BroadcastChannel('yms_realtime_channel_v3');
+    const channel = new BroadcastChannel('yms_realtime_channel_v4');
     channel.onmessage = (event) => {
       if (event.data.type === 'SYNC_LOCATIONS') setLocations(event.data.payload);
       if (event.data.type === 'SYNC_OVERFLOW') setOverflowList(event.data.payload);
@@ -145,9 +146,9 @@ export default function YMSApp() {
     return () => channel.close();
   }, []);
 
-  const broadcastUpdate = (newLocs) => {
+const broadcastUpdate = (newLocs) => {
     setLocations(newLocs);
-    const channel = new BroadcastChannel('yms_realtime_channel_v3');
+    const channel = new BroadcastChannel('yms_realtime_channel_v4');
     channel.postMessage({ type: 'SYNC_LOCATIONS', payload: newLocs });
     channel.close();
   };
@@ -237,13 +238,13 @@ export default function YMSApp() {
     };
     const nextOv = [newOv, ...overflowList];
     setOverflowList(nextOv);
-    const channel = new BroadcastChannel('yms_realtime_channel_v3');
+    const channel = new BroadcastChannel('yms_realtime_channel_v4');
     channel.postMessage({ type: 'SYNC_OVERFLOW', payload: nextOv });
     channel.close();
     setOverflowModal(false);
   };
 
-  const stats = useMemo(() => {
+const stats = useMemo(() => {
     const bLocs = locations.filter(l => l.building === building);
     return {
       totalEmptyMX: locations.filter(l => l.status === 'OCCUPIED_EMPTY').length,
@@ -274,9 +275,9 @@ export default function YMSApp() {
   }, [locations, building, zone, filterMode, searchQuery]);
 
   return (
-    <div className="min-h-screen bg-[#0b0a0e] text-white font-sans pb-24 select-none">
+    <div className="min-h-screen bg-[#0c0a12] text-white font-sans pb-24 select-none">
       {/* BARRA SUPERIOR */}
-      <header className="sticky top-0 z-30 bg-[#12101b]/95 backdrop-blur border-b border-purple-900/40 px-4 py-3">
+      <header className="sticky top-0 z-30 bg-[#161224]/95 backdrop-blur border-b border-purple-900/40 px-4 py-3">
         <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-3">
             <div className="h-9 w-9 rounded-lg bg-purple-700 flex items-center justify-center shadow-lg shadow-purple-700/30">
@@ -323,8 +324,8 @@ export default function YMSApp() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 pt-4 space-y-4">
-        {/* PANEL DE RETORNO MÉXICO (CAJAS VACÍAS) */}
-        <div className="bg-gradient-to-r from-cyan-950/70 via-[#151221] to-purple-950/50 border border-cyan-500/40 rounded-xl p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg">
+        {/* PANEL DE RETORNO MÉXICO (CAJAS VACÍAS EN CYAN) */}
+        <div className="bg-gradient-to-r from-cyan-950/70 via-[#161224] to-purple-950/50 border border-cyan-500/40 rounded-xl p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg">
           <div className="flex items-center gap-3">
             <div className="h-11 w-11 rounded-xl bg-cyan-500/20 border border-cyan-400 flex items-center justify-center shrink-0">
               <ArrowRightLeft className="h-6 w-6 text-cyan-300" />
@@ -361,9 +362,9 @@ export default function YMSApp() {
           </button>
         </div>
 
-        {/* SELECTORES DE BODEGA, DOCK/YARD Y MODOS DE VISTA */}
+        {/* SELECTORES DE BODEGA 4 Y 5, DOCK/YARD Y MODOS DE VISTA */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <div className="bg-[#161321] p-1 rounded-xl border border-zinc-800 flex">
+          <div className="bg-[#161224] p-1 rounded-xl border border-zinc-800 flex">
             <button
               onClick={() => setBuilding(4)}
               className={`flex-1 py-2.5 rounded-lg font-bold text-sm transition ${
@@ -382,7 +383,7 @@ export default function YMSApp() {
             </button>
           </div>
 
-          <div className="bg-[#161321] p-1 rounded-xl border border-zinc-800 flex">
+          <div className="bg-[#161224] p-1 rounded-xl border border-zinc-800 flex">
             <button
               onClick={() => setZone('DOCK')}
               className={`flex-1 py-2.5 rounded-lg font-bold text-sm transition ${
@@ -401,12 +402,21 @@ export default function YMSApp() {
             </button>
           </div>
 
-          <div className="bg-[#161321] p-1 rounded-xl border border-zinc-800 flex">
+          <div className="bg-[#161224] p-1 rounded-xl border border-zinc-800 flex">
             <button
               onClick={() => setViewMode('MOBILE')}
               className={`flex-1 py-2.5 rounded-lg font-bold text-xs flex items-center justify-center gap-1.5 transition ${
+                viewMode === 'MOBILE' ? 'bg-purple-600 text-white' : 'text-zinc-400 hover:text-white'
+              }`}
+            >
+              <Smartphone className="h-4 w-4" />
+              {lang === 'ES' ? 'Vista Tarjetas' : 'Card View'}
+            </button>
+            <button
+              onClick={() => setViewMode('MATRIX')}
+              className={`flex-1 py-2.5 rounded-lg font-bold text-xs flex items-center justify-center gap-1.5 transition ${
                 viewMode === 'MATRIX' ? 'bg-purple-600 text-white' : 'text-zinc-400 hover:text-white'
-                }`}
+              }`}
             >
               <LayoutGrid className="h-4 w-4" />
               {lang === 'ES' ? 'Location Center (Matriz)' : 'Location Center (Matrix)'}
@@ -414,8 +424,8 @@ export default function YMSApp() {
           </div>
         </div>
 
-        {/* LEYENDA Y FILTROS */}
-        <div className="bg-[#15131f] border border-zinc-800/90 rounded-xl p-3 flex flex-wrap items-center justify-between gap-3">
+        {/* LEYENDA Y FILTROS RÁPIDOS */}
+        <div className="bg-[#161224] border border-zinc-800/90 rounded-xl p-3 flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2 text-xs">
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-zinc-900 border border-zinc-700">
               <span className="h-3 w-3 rounded-sm bg-emerald-600 inline-block"></span>
@@ -463,9 +473,9 @@ export default function YMSApp() {
           </div>
         </div>
 
-        {/* VISTA 1: LOCATION CENTER (MATRIZ DE COLORES) */}
+        {/* VISTA 1: LOCATION CENTER (MATRIZ VISUAL CON VACÍOS EN CYAN) */}
         {viewMode === 'MATRIX' && (
-          <div className="bg-[#151221] border border-zinc-800 rounded-2xl p-4 space-y-4">
+          <div className="bg-[#161224] border border-zinc-800 rounded-2xl p-4 space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="font-bold text-base tracking-wide uppercase text-zinc-200">
                 BUILDING {building} — {zone === 'DOCK' ? 'DOCK OVERVIEW' : 'YARD OVERVIEW'}
@@ -502,6 +512,7 @@ export default function YMSApp() {
             </div>
           </div>
         )}
+
         {/* VISTA 2: TARJETAS MÓVILES */}
         {viewMode === 'MOBILE' && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
@@ -511,7 +522,7 @@ export default function YMSApp() {
               return (
                 <div
                   key={loc.id}
-                  className={`bg-[#151221] rounded-2xl p-4 border-2 transition shadow-lg ${
+                  className={`bg-[#161224] rounded-2xl p-4 border-2 transition shadow-lg ${
                     loc.status === 'OCCUPIED_EMPTY'
                       ? 'border-cyan-400/80 shadow-cyan-950/50'
                       : loc.status === 'DISCREPANCY'
@@ -581,6 +592,7 @@ export default function YMSApp() {
                           <span className="font-semibold text-zinc-200">{loc.operator || 'Sin asignar'}</span>
                         </div>
                       </div>
+
                       {loc.discrepancyMsg && (
                         <div className="bg-amber-950/60 border border-amber-500/60 text-amber-200 px-3 py-1.5 rounded-lg text-xs flex items-center gap-2">
                           <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0" />
@@ -623,7 +635,7 @@ export default function YMSApp() {
         )}
 
         {/* SECCIÓN DE SOBREFLUJO EN YARDA */}
-        <div className="bg-[#18121e] border-2 border-amber-500/60 rounded-2xl p-4 space-y-3">
+        <div className="bg-[#161224] border-2 border-amber-500/60 rounded-2xl p-4 space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <h3 className="font-extrabold text-base text-amber-400 uppercase tracking-wide">
@@ -675,10 +687,11 @@ export default function YMSApp() {
           </div>
         </div>
       </main>
+
       {/* MODAL PARA ASIGNAR / EDITAR RAMPA O LUGAR */}
       {editingLoc && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <form onSubmit={handleSaveLocation} className="bg-[#161324] border border-purple-700/60 rounded-2xl max-w-md w-full p-5 space-y-4 shadow-2xl">
+          <form onSubmit={handleSaveLocation} className="bg-[#161224] border border-purple-700/60 rounded-2xl max-w-md w-full p-5 space-y-4 shadow-2xl">
             <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
               <h3 className="font-extrabold text-lg">
                 Bodega {editingLoc.building} • {editingLoc.zone === 'DOCK' ? 'Rampa' : 'Yarda'} {editingLoc.number}
@@ -766,6 +779,7 @@ export default function YMSApp() {
                 />
               </div>
             </div>
+
             <div className="flex gap-2 pt-2">
               <button
                 type="button"
@@ -788,7 +802,7 @@ export default function YMSApp() {
       {/* MODAL PARA REGISTRAR SOBREFLUJO */}
       {overflowModal && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <form onSubmit={handleAddOverflow} className="bg-[#161324] border border-amber-500/60 rounded-2xl max-w-md w-full p-5 space-y-4">
+          <form onSubmit={handleAddOverflow} className="bg-[#161224] border border-amber-500/60 rounded-2xl max-w-md w-full p-5 space-y-4">
             <h3 className="font-extrabold text-base text-amber-400">Registrar Trailer en Sobreflujo (Bodega {building})</h3>
             <div className="space-y-3 text-xs">
               <div>
