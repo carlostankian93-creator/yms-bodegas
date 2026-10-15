@@ -267,7 +267,6 @@ export default function YMSApp() {
       return true;
     });
   }, [locations, building, zone, filterMode, searchQuery]);
-
   return (
     <div className="min-h-screen bg-[#0b0a0e] text-white font-sans pb-24 select-none">
       <header className="sticky top-0 z-30 bg-[#12101b]/95 backdrop-blur border-b border-purple-900/40 px-4 py-3">
@@ -416,4 +415,411 @@ export default function YMSApp() {
         </div>
 
         <div className="bg-[#15131f] border border-zinc-800/90 rounded-xl p-3 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-2 t
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-zinc-900 border border-zinc-700">
+              <span className="h-3 w-3 rounded-sm bg-emerald-600 inline-block"></span>
+              {lang === 'ES' ? 'Libre' : 'Available'}: <b>{stats.available}</b>
+            </span>
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-zinc-900 border border-zinc-700">
+              <span className="h-3 w-3 rounded-sm bg-red-600 inline-block"></span>
+              {lang === 'ES' ? 'Ocupado (Cargado)' : 'Occupied (Loaded)'}: <b>{stats.occupiedLoaded}</b>
+            </span>
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-cyan-950/90 border border-cyan-400 text-cyan-200 font-semibold">
+              <span className="h-3 w-3 rounded-sm bg-cyan-400 inline-block"></span>
+              {lang === 'ES' ? 'VACÍO (Para Chofer MX)' : 'EMPTY (For MX Driver)'}: <b>{stats.emptyMX}</b>
+            </span>
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-zinc-900 border border-zinc-700">
+              <span className="h-3 w-3 rounded-sm bg-blue-600 inline-block"></span>
+              {lang === 'ES' ? 'Cargando / Descargando' : 'Working'}: <b>{stats.working}</b>
+            </span>
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-zinc-900 border border-zinc-700">
+              <span className="h-3 w-3 rounded-sm bg-amber-500 inline-block"></span>
+              {lang === 'ES' ? 'Discrepancia' : 'Discrepancy'}: <b>{stats.discrepancy}</b>
+            </span>
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-zinc-900 border border-zinc-700">
+              <span className="h-3 w-3 rounded-sm bg-zinc-200 inline-block"></span>
+              {lang === 'ES' ? 'Inhabilitada' : 'Disabled'}: <b>{stats.disabled}</b>
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <button
+              onClick={() => setFilterMode(filterMode === 'PRELOAD_LIVE' ? 'ALL' : 'PRELOAD_LIVE')}
+              className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition ${
+                filterMode === 'PRELOAD_LIVE'
+                  ? 'bg-purple-600 border-purple-400 text-white'
+                  : 'bg-[#1d192b] border-purple-800/50 text-purple-300 hover:bg-purple-950'
+              }`}
+            >
+              Preload / Live Load
+            </button>
+            <div className="relative flex-1 sm:w-52">
+              <Search className="h-3.5 w-3.5 text-zinc-400 absolute left-2.5 top-2.5" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder={lang === 'ES' ? 'Buscar #Rampa, Trlr, Operador...' : 'Search Dock, Trlr, Operator...'}
+                className="w-full bg-[#0e0c14] border border-zinc-700 rounded-lg pl-8 pr-3 py-1.5 text-xs text-white focus:outline-none focus:border-purple-500"
+              />
+            </div>
+          </div>
+        </div>
+
+        {viewMode === 'MATRIX' && (
+          <div className="bg-[#151221] border border-zinc-800 rounded-2xl p-4 space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="font-bold text-base tracking-wide uppercase text-zinc-200">
+                BUILDING {building} — {zone === 'DOCK' ? 'DOCK OVERVIEW' : 'YARD OVERVIEW'}
+              </h2>
+              <span className="text-xs text-zinc-400">
+                {lang === 'ES' ? 'Toca cualquier cuadro para actualizar trailer o estado' : 'Tap any square to update trailer or status'}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-4 sm:grid-cols-8 md:grid-cols-11 gap-2">
+              {filteredLocations.map(loc => {
+                const cfg = STATUS_CONFIG[loc.status];
+                return (
+                  <button
+                    key={loc.id}
+                    onClick={() => setEditingLoc(loc)}
+                    className={`${cfg.colorBg} rounded-lg p-2 flex flex-col items-center justify-between min-h-[70px] shadow-md hover:scale-105 transition relative overflow-hidden border ${cfg.colorBorder}`}
+                  >
+                    {loc.trailer && loc.loadType !== 'INBOUND' && (
+                      <span className="text-[9px] font-black uppercase tracking-tighter bg-black/60 text-purple-200 px-1.5 py-0.2 rounded">
+                        {loc.loadType}
+                      </span>
+                    )}
+                    <span className="font-black text-base leading-none my-auto">{loc.number}</span>
+                    {loc.trailer ? (
+                      <span className="text-[10px] font-bold truncate max-w-full bg-black/40 text-white px-1 rounded">
+                        {loc.trailer}
+                      </span>
+                    ) : (
+                      <span className="text-[9px] opacity-75">
+                        {loc.status === 'DISABLED' ? 'BLOCK' : 'FREE'}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {viewMode === 'MOBILE' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+            {filteredLocations.map(loc => {
+              const cfg = STATUS_CONFIG[loc.status];
+              const loadTypeObj = LOAD_TYPES.find(t => t.id === loc.loadType);
+              return (
+                <div
+                  key={loc.id}
+                  className={`bg-[#151221] rounded-2xl p-4 border-2 transition shadow-lg ${
+                    loc.status === 'OCCUPIED_EMPTY'
+                      ? 'border-cyan-400/80 shadow-cyan-950/50'
+                      : loc.status === 'DISCREPANCY'
+                      ? 'border-amber-500/80'
+                      : 'border-purple-900/40'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2 mb-2.5">
+                    <div className="flex items-center gap-2">
+                      <span className="font-extrabold text-lg tracking-tight">
+                        {loc.zone === 'DOCK' ? (lang === 'ES' ? 'RAMPA' : 'DOCK') : (lang === 'ES' ? 'YARDA' : 'YARD')} {loc.number}
+                      </span>
+                      {loc.trailer && (
+                        <span className={`text-[10px] font-extrabold uppercase px-2 py-0.5 rounded border ${
+                          loc.loadType === 'PRELOAD' 
+                            ? 'bg-purple-950 text-purple-300 border-purple-500' 
+                            : loc.loadType === 'LIVELOAD'
+                            ? 'bg-indigo-950 text-indigo-300 border-indigo-400'
+                            : 'bg-zinc-800 text-zinc-300 border-zinc-600'
+                        }`}>
+                          {loc.loadType === 'PRELOAD' ? 'PRELOAD TRLR' : loc.loadType === 'LIVELOAD' ? 'LIVE LOAD' : 'INBOUND'}
+                        </span>
+                      )}
+                    </div>
+
+                    <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full border ${cfg.badgeBg}`}>
+                      ● {lang === 'ES' ? cfg.labelES : cfg.labelEN}
+                    </span>
+                  </div>
+
+                  {loc.status === 'AVAILABLE' ? (
+                    <div className="space-y-3">
+                      <p className="text-xs text-emerald-400 font-medium">
+                        {lang === 'ES' ? 'Estado: Habilitada / Libre para asignar' : 'Status: Available / Ready to assign'}
+                      </p>
+                      <button
+                        onClick={() => setEditingLoc(loc)}
+                        className="w-full py-2.5 bg-purple-600 hover:bg-purple-500 rounded-xl font-bold text-sm flex items-center justify-center gap-1.5 shadow-md shadow-purple-600/20 transition"
+                      >
+                        <Plus className="h-4 w-4" />
+                        {lang === 'ES' ? 'Asignar Trailer (Carga / Descarga)' : 'Assign Trailer (Load / Unload)'}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-2 gap-2 text-xs bg-[#0d0b14] p-2.5 rounded-xl border border-zinc-800/80">
+                        <div>
+                          <span className="text-zinc-400 block">{lang === 'ES' ? 'Trailer #:' : 'Trailer #:'}</span>
+                          <span className="font-extrabold text-sm text-white">{loc.trailer || 'N/A'}</span>
+                        </div>
+                        <div>
+                          <span className="text-zinc-400 block">{lang === 'ES' ? 'Estado Caja:' : 'Box State:'}</span>
+                          <span className={`font-bold text-sm ${loc.loadState === 'EMPTY' ? 'text-cyan-300' : 'text-red-400'}`}>
+                            {loc.loadState === 'EMPTY' 
+                              ? (lang === 'ES' ? 'VACÍO (Retorno MX)' : 'EMPTY (MX Return)') 
+                              : (lang === 'ES' ? 'CARGADO' : 'LOADED')}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-zinc-400 block">{lang === 'ES' ? 'Modalidad:' : 'Mode:'}</span>
+                          <span className="font-semibold text-purple-300">
+                            {lang === 'ES' ? loadTypeObj?.es : loadTypeObj?.en}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-zinc-400 block">{lang === 'ES' ? 'Asignado a:' : 'Assigned to:'}</span>
+                          <span className="font-semibold text-zinc-200">{loc.operator || 'Sin asignar'}</span>
+                        </div>
+                      </div>
+
+                      {loc.discrepancyMsg && (
+                        <div className="bg-amber-950/60 border border-amber-500/60 text-amber-200 px-3 py-1.5 rounded-lg text-xs flex items-center gap-2">
+                          <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0" />
+                          <span><b>Discrepancia:</b> {loc.discrepancyMsg}</span>
+                        </div>
+                      )}
+
+                      <div className="flex flex-wrap gap-1.5 pt-1">
+                        <button
+                          onClick={() => setEditingLoc(loc)}
+                          className="flex-1 bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs py-2 px-3 rounded-lg transition"
+                        >
+                          {lang === 'ES' ? 'Cambiar / Editar' : 'Change / Edit'}
+                        </button>
+
+                        {loc.status !== 'OCCUPIED_EMPTY' && loc.status !== 'DISABLED' && (
+                          <button
+                            onClick={() => quickMarkEmptyForMexico(loc)}
+                            className="flex-1 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-extrabold text-xs py-2 px-3 rounded-lg transition"
+                          >
+                            {lang === 'ES' ? '✓ Marcar VACÍO (MX)' : '✓ Mark EMPTY (MX)'}
+                          </button>
+                        )}
+
+                        {loc.status === 'OCCUPIED_EMPTY' && (
+                          <button
+                            onClick={() => quickReleaseToDriver(loc)}
+                            className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs py-2 px-3 rounded-lg transition"
+                          >
+                            {lang === 'ES' ? 'Entregar a Chofer MX (Liberar)' : 'Release to MX Driver'}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        <div className="bg-[#18121e] border-2 border-amber-500/60 rounded-2xl p-4 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h3 className="font-extrabold text-base text-amber-400 uppercase tracking-wide">
+                {lang === 'ES' 
+                  ? `SOBREFLUJO / DESBORDAMIENTO (YARDA BODEGA ${building})` 
+                  : `YARD OVERFLOW (BUILDING ${building})`}
+              </h3>
+              <p className="text-xs text-zinc-400">
+                {lang === 'ES'
+                  ? 'Trailers estacionados frente a otros lugares ocupados o en pasillos sin cajón asignado'
+                  : 'Trailers parked in front of occupied spots or aisles without an assigned slot'}
+              </p>
+            </div>
+            <button
+              onClick={() => setOverflowModal(true)}
+              className="bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs px-4 py-2.5 rounded-xl flex items-center gap-1.5 shadow-md"
+            >
+              <Plus className="h-4 w-4" />
+              {lang === 'ES' ? 'Registrar Trailer en Sobreflujo' : 'Register Overflow Trailer'}
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {overflowList.filter(o => o.building === building).map(item => (
+              <div key={item.id} className="bg-[#110e17] border border-amber-500/40 rounded-xl p-3 flex items-center justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-extrabold text-sm text-white">{item.trailer}</span>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                      item.loadState === 'EMPTY' ? 'bg-cyan-950 text-cyan-300 border border-cyan-500/50' : 'bg-red-950 text-red-300 border border-red-500/50'
+                    }`}>
+                      {item.loadState === 'EMPTY' ? 'VACÍO (MX)' : 'CARGADO'}
+                    </span>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-purple-950 text-purple-300">
+                      {item.loadType}
+                    </span>
+                  </div>
+                  <p className="text-xs text-amber-300 font-medium mt-1">📍 {item.refPosition}</p>
+                  <p className="text-[11px] text-zinc-500 mt-0.5">Por: {item.updatedBy} a las {item.updatedAt}</p>
+                </div>
+                <button
+                  onClick={() => setOverflowList(overflowList.filter(o => o.id !== item.id))}
+                  className="text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-3 py-1.5 rounded-lg border border-zinc-700"
+                >
+                  {lang === 'ES' ? 'Mover / Quitar' : 'Remove'}
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      </main>
+
+      {editingLoc && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <form onSubmit={handleSaveLocation} className="bg-[#161324] border border-purple-700/60 rounded-2xl max-w-md w-full p-5 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+              <h3 className="font-extrabold text-lg">
+                Bodega {editingLoc.building} • {editingLoc.zone === 'DOCK' ? 'Rampa' : 'Yarda'} {editingLoc.number}
+              </h3>
+              <button type="button" onClick={() => setEditingLoc(null)} className="text-zinc-400 hover:text-white text-sm font-bold">✕</button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="block text-zinc-300 font-semibold mb-1">Número de Trailer / Caja:</label>
+                <input
+                  name="trailer"
+                  defaultValue={editingLoc.trailer}
+                  placeholder="Ej. TRL-8842 o MX-4410"
+                  className="w-full bg-[#0d0b14] border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white font-bold uppercase"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-zinc-300 font-semibold mb-1">Estado de Carga:</label>
+                  <select
+                    name="loadState"
+                    defaultValue={editingLoc.loadState}
+                    className="w-full bg-[#0d0b14] border border-zinc-700 rounded-lg px-2.5 py-2 text-white font-semibold"
+                  >
+                    <option value="LOADED">🔴 CARGADO (Loaded)</option>
+                    <option value="EMPTY">🩵 VACÍO (Listo Chofer MX)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-zinc-300 font-semibold mb-1">Tipo de Operación:</label>
+                  <select
+                    name="loadType"
+                    defaultValue={editingLoc.loadType}
+                    className="w-full bg-[#0d0b14] border border-zinc-700 rounded-lg px-2.5 py-2 text-white font-semibold"
+                  >
+                    <option value="INBOUND">📥 Descarga (Inbound)</option>
+                    <option value="PRELOAD">📦 Preload Trlr</option>
+                    <option value="LIVELOAD">⚡ Live Load</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-zinc-300 font-semibold mb-1">Estado de la Rampa / Lugar:</label>
+                <select
+                  name="opState"
+                  defaultValue={
+                    editingLoc.status === 'WORKING' ? 'WORKING' :
+                    editingLoc.status === 'DISCREPANCY' ? 'DISCREPANCY' :
+                    editingLoc.status === 'DISABLED' ? 'DISABLED' : 'STATIC'
+                  }
+                  className="w-full bg-[#0d0b14] border border-zinc-700 rounded-lg px-3 py-2 text-white font-semibold"
+                >
+                  <option value="STATIC">Estacionado en Posición (Cargado o Vacío)</option>
+                  <option value="WORKING">🔵 En Proceso Activo (Cargando / Descargando)</option>
+                  <option value="DISCREPANCY">🟠 Bloqueado por Discrepancia (No tocar)</option>
+                  <option value="FREE">🟢 Liberar Rampa / Lugar (Quedó Libre)</option>
+                  <option value="DISABLED">⚪ Inhabilitar Rampa (Mantenimiento / Dañada)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-zinc-300 font-semibold mb-1">Montacarguista Asignado:</label>
+                <input
+                  name="operator"
+                  defaultValue={editingLoc.operator || activeOperator}
+                  placeholder="Nombre del operador"
+                  className="w-full bg-[#0d0b14] border border-zinc-700 rounded-lg px-3 py-2 text-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-zinc-300 font-semibold mb-1">Nota de Discrepancia (Opcional):</label>
+                <input
+                  name="discrepancyMsg"
+                  defaultValue={editingLoc.discrepancyMsg}
+                  placeholder="Ej. Sello no coincide con BOL"
+                  className="w-full bg-[#0d0b14] border border-zinc-700 rounded-lg px-3 py-2 text-white"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setEditingLoc(null)}
+                className="flex-1 py-2.5 rounded-xl bg-zinc-800 text-zinc-300 font-bold text-xs"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                className="flex-1 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-lg shadow-purple-600/30"
+              >
+                Guardar y Sincronizar
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {overflowModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <form onSubmit={handleAddOverflow} className="bg-[#161324] border border-amber-500/60 rounded-2xl max-w-md w-full p-5 space-y-4">
+            <h3 className="font-extrabold text-base text-amber-400">Registrar Trailer en Sobreflujo (Bodega {building})</h3>
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="block text-zinc-300 font-semibold mb-1">Trailer #:</label>
+                <input name="trailer" required placeholder="Ej. TRL-9912" className="w-full bg-[#0d0b14] border border-zinc-700 rounded-lg px-3 py-2 text-white font-bold uppercase" />
+              </div>
+              <div>
+                <label className="block text-zinc-300 font-semibold mb-1">Ubicación Física de Referencia:</label>
+                <input name="refPosition" required placeholder="Ej. En frente de Rampa 12" className="w-full bg-[#0d0b14] border border-zinc-700 rounded-lg px-3 py-2 text-white" />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <select name="loadState" className="bg-[#0d0b14] border border-zinc-700 rounded-lg px-2.5 py-2 text-white font-semibold">
+                  <option value="LOADED">Cargado</option>
+                  <option value="EMPTY">Vacío (Para Chofer MX)</option>
+                </select>
+                <select name="loadType" className="bg-[#0d0b14] border border-zinc-700 rounded-lg px-2.5 py-2 text-white font-semibold">
+                  <option value="INBOUND">Inbound</option>
+                  <option value="PRELOAD">Preload Trlr</option>
+                  <option value="LIVELOAD">Live Load</option>
+                </select>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button type="button" onClick={() => setOverflowModal(false)} className="flex-1 py-2 rounded-xl bg-zinc-800 text-zinc-300 font-bold text-xs">Cancelar</button>
+              <button type="submit" className="flex-1 py-2 rounded-xl bg-amber-500 text-slate-950 font-extrabold text-xs">Guardar Sobreflujo</button>
+            </div>
+          </form>
+        </div>
+      )}
+    </div>
+  );
+}
