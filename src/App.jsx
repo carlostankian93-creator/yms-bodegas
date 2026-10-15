@@ -5,8 +5,6 @@ import {
   ArrowRightLeft, PackageOpen, ShieldAlert, Radio, Send
 } from 'lucide-react';
 
-// --- CONFIGURACIÓN DE COLORES Y ESTADOS OPERATIVOS ---
-// Matriz de colores diseñada para contraste inmediato en piso y monitor
 const STATUS_CONFIG = {
   AVAILABLE: {
     id: 'AVAILABLE',
@@ -37,7 +35,7 @@ const STATUS_CONFIG = {
   },
   OCCUPIED_EMPTY: {
     id: 'OCCUPIED_EMPTY',
-    colorBg: 'bg-cyan-500', // Color distintivo de alta visibilidad para retorno a México
+    colorBg: 'bg-cyan-500',
     colorBorder: 'border-cyan-400',
     colorText: 'text-cyan-300',
     badgeBg: 'bg-cyan-950/90 border-cyan-400 text-cyan-200',
@@ -70,17 +68,14 @@ const LOAD_TYPES = [
   { id: 'LIVELOAD', es: 'Live Load (Carga en Vivo)', en: 'Live Load' }
 ];
 
-// Generador de estructura inicial de Bodegas 4 y 5
 const generateInitialLocations = () => {
   const locs = [];
-  // Bodega 4: Rampas 1-44, Yarda 1-50
   for (let i = 1; i <= 44; i++) {
     locs.push({ id: `B4-D-${i}`, building: 4, zone: 'DOCK', number: i, status: 'AVAILABLE', trailer: '', loadState: 'EMPTY', loadType: 'INBOUND', operator: '', discrepancyMsg: '', updatedBy: 'System', updatedAt: '' });
   }
   for (let i = 1; i <= 50; i++) {
     locs.push({ id: `B4-Y-${i}`, building: 4, zone: 'YARD', number: i, status: 'AVAILABLE', trailer: '', loadState: 'EMPTY', loadType: 'INBOUND', operator: '', discrepancyMsg: '', updatedBy: 'System', updatedAt: '' });
   }
-  // Bodega 5: Rampas 1001-1038, Yarda 51-99
   for (let i = 1001; i <= 1038; i++) {
     locs.push({ id: `B5-D-${i}`, building: 5, zone: 'DOCK', number: i, status: 'AVAILABLE', trailer: '', loadState: 'EMPTY', loadType: 'INBOUND', operator: '', discrepancyMsg: '', updatedBy: 'System', updatedAt: '' });
   }
@@ -88,7 +83,6 @@ const generateInitialLocations = () => {
     locs.push({ id: `B5-Y-${i}`, building: 5, zone: 'YARD', number: i, status: 'AVAILABLE', trailer: '', loadState: 'EMPTY', loadType: 'INBOUND', operator: '', discrepancyMsg: '', updatedBy: 'System', updatedAt: '' });
   }
 
-  // Datos de demostración realistas para visualizar todos los estados inmediatamente
   const demoOverrides = [
     { id: 'B4-D-1', status: 'WORKING', trailer: 'TRL-8842', loadState: 'LOADED', loadType: 'INBOUND', operator: 'J. Gómez', updatedBy: 'J. Gómez', updatedAt: '16:15' },
     { id: 'B4-D-3', status: 'DISABLED', trailer: '', loadState: 'EMPTY', loadType: 'INBOUND', operator: '', updatedBy: 'A. Pichardo', updatedAt: '14:00' },
@@ -108,13 +102,12 @@ const generateInitialLocations = () => {
 };
 
 export default function YMSApp() {
-  // --- ESTADOS GLOBALES Y MULTI-NODO ---
   const [lang, setLang] = useState('ES');
   const [activeOperator, setActiveOperator] = useState('A. Pichardo (Sup)');
   const [building, setBuilding] = useState(4);
-  const [zone, setZone] = useState('DOCK'); // 'DOCK' | 'YARD'
-  const [viewMode, setViewMode] = useState('MOBILE'); // 'MOBILE' | 'MATRIX'
-  const [filterMode, setFilterMode] = useState('ALL'); // 'ALL' | 'EMPTY_MX' | 'PRELOAD_LIVE' | 'DISCREPANCY'
+  const [zone, setZone] = useState('DOCK');
+  const [viewMode, setViewMode] = useState('MOBILE');
+  const [filterMode, setFilterMode] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
 
   const [locations, setLocations] = useState(() => {
@@ -130,17 +123,9 @@ export default function YMSApp() {
     ];
   });
 
-  const [activityLog, setActivityLog] = useState([
-    { time: '16:40', user: 'A. Castro', action: 'Rampa 1002 -> En Operación (Preload Trlr)' },
-    { time: '16:35', user: 'D. Ríos', action: 'Rampa 1001 -> VACÍO (Listo para Chofer MX)' }
-  ]);
-
-  // Modal de Edición / Asignación
   const [editingLoc, setEditingLoc] = useState(null);
   const [overflowModal, setOverflowModal] = useState(false);
 
-  // --- MOTOR DE SINCRONIZACIÓN EN TIEMPO REAL (BROADCAST CHANNEL + STORAGE) ---
-  // Permite que múltiples pestañas/dispositivos en la misma red o base de datos se actualicen al instante
   useEffect(() => {
     localStorage.setItem('yms_locations_v2', JSON.stringify(locations));
     localStorage.setItem('yms_overflow_v2', JSON.stringify(overflowList));
@@ -151,7 +136,6 @@ export default function YMSApp() {
     channel.onmessage = (event) => {
       if (event.data.type === 'SYNC_LOCATIONS') setLocations(event.data.payload);
       if (event.data.type === 'SYNC_OVERFLOW') setOverflowList(event.data.payload);
-      if (event.data.type === 'SYNC_LOG') setActivityLog(prev => [event.data.payload, ...prev.slice(0, 19)]);
     };
     return () => channel.close();
   }, []);
@@ -160,23 +144,18 @@ export default function YMSApp() {
     setLocations(newLocs);
     const channel = new BroadcastChannel('yms_realtime_sync_channel');
     channel.postMessage({ type: 'SYNC_LOCATIONS', payload: newLocs });
-    if (logEntry) {
-      setActivityLog(prev => [logEntry, ...prev.slice(0, 19)]);
-      channel.postMessage({ type: 'SYNC_LOG', payload: logEntry });
-    }
     channel.close();
   };
 
-  // --- FUNCIONES DE ACTUALIZACIÓN DE ESTADO DE TRAILERS ---
   const nowTime = () => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
 
   const handleSaveLocation = (e) => {
     e.preventDefault();
     const formData = new FormData(e.target);
     const trailer = formData.get('trailer').trim().toUpperCase();
-    const loadState = formData.get('loadState'); // 'LOADED' | 'EMPTY'
-    const loadType = formData.get('loadType');   // 'INBOUND' | 'PRELOAD' | 'LIVELOAD'
-    const opState = formData.get('opState');     // 'STATIC' | 'WORKING' | 'DISCREPANCY' | 'DISABLED' | 'FREE'
+    const loadState = formData.get('loadState');
+    const loadType = formData.get('loadType');
+    const opState = formData.get('opState');
     const operator = formData.get('operator').trim() || activeOperator;
     const discrepancyMsg = formData.get('discrepancyMsg')?.trim() || '';
 
@@ -203,17 +182,10 @@ export default function YMSApp() {
       };
     });
 
-    const logEntry = {
-      time: nowTime(),
-      user: activeOperator,
-      action: `${editingLoc.zone} ${editingLoc.number} (B${editingLoc.building}): ${trailer || 'Libre'} -> ${STATUS_CONFIG[newStatus].labelES}`
-    };
-
-    broadcastUpdate(updatedLocs, logEntry);
+    broadcastUpdate(updatedLocs);
     setEditingLoc(null);
   };
 
-  // Acción rápida de 1 toque para marcar Trailer como VACÍO (Listo para Chofer México)
   const quickMarkEmptyForMexico = (loc) => {
     const updatedLocs = locations.map(l => {
       if (l.id !== loc.id) return l;
@@ -225,14 +197,9 @@ export default function YMSApp() {
         updatedAt: nowTime()
       };
     });
-    broadcastUpdate(updatedLocs, {
-      time: nowTime(),
-      user: activeOperator,
-      action: `${loc.zone} ${loc.number}: ${loc.trailer} marcado VACÍO para Chofer MX`
-    });
+    broadcastUpdate(updatedLocs);
   };
 
-  // Acción rápida para despachar/liberar un trailer vacío que se lleva el chofer de México
   const quickReleaseToDriver = (loc) => {
     const updatedLocs = locations.map(l => {
       if (l.id !== loc.id) return l;
@@ -247,14 +214,9 @@ export default function YMSApp() {
         updatedAt: nowTime()
       };
     });
-    broadcastUpdate(updatedLocs, {
-      time: nowTime(),
-      user: activeOperator,
-      action: `${loc.zone} ${loc.number}: Trailer ${loc.trailer} entregado a Chofer MX (Lugar Libre)`
-    });
+    broadcastUpdate(updatedLocs);
   };
 
-  // Agregar trailer en Sobreflujo / Desbordamiento
   const handleAddOverflow = (e) => {
     e.preventDefault();
     const formData = new FormData(e.target);
@@ -276,7 +238,6 @@ export default function YMSApp() {
     setOverflowModal(false);
   };
 
-  // --- MÉTRICAS Y FILTRADO OPERATIVO ---
   const stats = useMemo(() => {
     const bLocs = locations.filter(l => l.building === building);
     return {
@@ -301,10 +262,7 @@ export default function YMSApp() {
       if (filterMode === 'DISCREPANCY' && loc.status !== 'DISCREPANCY') return false;
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
-        const matchNum = String(loc.number).includes(q);
-        const matchTrl = loc.trailer.toLowerCase().includes(q);
-        const matchOp = loc.operator.toLowerCase().includes(q);
-        return matchNum || matchTrl || matchOp;
+        return String(loc.number).includes(q) || loc.trailer.toLowerCase().includes(q) || loc.operator.toLowerCase().includes(q);
       }
       return true;
     });
@@ -312,7 +270,6 @@ export default function YMSApp() {
 
   return (
     <div className="min-h-screen bg-[#0b0a0e] text-white font-sans pb-24 select-none">
-      {/* BARRA SUPERIOR: NODO ACTIVO, SINCRONIZACIÓN E IDIOMA */}
       <header className="sticky top-0 z-30 bg-[#12101b]/95 backdrop-blur border-b border-purple-900/40 px-4 py-3">
         <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-3">
@@ -330,7 +287,6 @@ export default function YMSApp() {
             </div>
           </div>
 
-          {/* Selector de Operador / Montacarguista Activo + Idioma */}
           <div className="flex items-center gap-2">
             <div className="flex items-center bg-[#1b1829] border border-purple-800/50 rounded-lg px-2.5 py-1.5 text-xs">
               <User className="h-3.5 w-3.5 text-purple-400 mr-1.5" />
@@ -361,7 +317,6 @@ export default function YMSApp() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 pt-4 space-y-4">
-        {/* PANEL CRÍTICO DE DESPACHO: TRAILERS VACÍOS LISTOS PARA CHOFERES DE MÉXICO */}
         <div className="bg-gradient-to-r from-cyan-950/70 via-[#151221] to-purple-950/50 border border-cyan-500/40 rounded-xl p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg">
           <div className="flex items-center gap-3">
             <div className="h-11 w-11 rounded-xl bg-cyan-500/20 border border-cyan-400 flex items-center justify-center shrink-0">
@@ -399,11 +354,66 @@ export default function YMSApp() {
           </button>
         </div>
 
-        {/* CONTROLES DE BODEGA, ZONA (DOCKS / YARDA) Y MODO DE VISTA */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          {/* Selector Bodega 4 / Bodega 5 */}
           <div className="bg-[#161321] p-1 rounded-xl border border-zinc-800 flex">
             <button
               onClick={() => setBuilding(4)}
               className={`flex-1 py-2.5 rounded-lg font-bold text-sm transition ${
-                building === 4 ? 'bg-purple-600
+                building === 4 ? 'bg-purple-600 text-white shadow-md shadow-purple-600/30' : 'text-zinc-400 hover:text-white'
+              }`}
+            >
+              BODEGA 4 <span className="text-xs font-normal opacity-80">(D:1-44 | Y:1-50)</span>
+            </button>
+            <button
+              onClick={() => setBuilding(5)}
+              className={`flex-1 py-2.5 rounded-lg font-bold text-sm transition ${
+                building === 5 ? 'bg-purple-600 text-white shadow-md shadow-purple-600/30' : 'text-zinc-400 hover:text-white'
+              }`}
+            >
+              BODEGA 5 <span className="text-xs font-normal opacity-80">(D:1001-1038 | Y:51-99)</span>
+            </button>
+          </div>
+
+          <div className="bg-[#161321] p-1 rounded-xl border border-zinc-800 flex">
+            <button
+              onClick={() => setZone('DOCK')}
+              className={`flex-1 py-2.5 rounded-lg font-bold text-sm transition ${
+                zone === 'DOCK' ? 'bg-zinc-800 text-purple-300 border border-purple-500/40' : 'text-zinc-400 hover:text-white'
+              }`}
+            >
+              RAMPAS / DOCKS
+            </button>
+            <button
+              onClick={() => setZone('YARD')}
+              className={`flex-1 py-2.5 rounded-lg font-bold text-sm transition ${
+                zone === 'YARD' ? 'bg-zinc-800 text-purple-300 border border-purple-500/40' : 'text-zinc-400 hover:text-white'
+              }`}
+            >
+              YARDA / PATIO
+            </button>
+          </div>
+
+          <div className="bg-[#161321] p-1 rounded-xl border border-zinc-800 flex">
+            <button
+              onClick={() => setViewMode('MOBILE')}
+              className={`flex-1 py-2.5 rounded-lg font-bold text-xs flex items-center justify-center gap-1.5 transition ${
+                viewMode === 'MOBILE' ? 'bg-purple-600 text-white' : 'text-zinc-400 hover:text-white'
+              }`}
+            >
+              <Smartphone className="h-4 w-4" />
+              {lang === 'ES' ? 'Vista Montacargas (Tarjetas)' : 'Forklift View (Cards)'}
+            </button>
+            <button
+              onClick={() => setViewMode('MATRIX')}
+              className={`flex-1 py-2.5 rounded-lg font-bold text-xs flex items-center justify-center gap-1.5 transition ${
+                viewMode === 'MATRIX' ? 'bg-purple-600 text-white' : 'text-zinc-400 hover:text-white'
+              }`}
+            >
+              <LayoutGrid className="h-4 w-4" />
+              {lang === 'ES' ? 'Location Center (Matriz)' : 'Location Center (Matrix)'}
+            </button>
+          </div>
+        </div>
+
+        <div className="bg-[#15131f] border border-zinc-800/90 rounded-xl p-3 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex f
