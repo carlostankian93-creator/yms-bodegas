@@ -79,8 +79,10 @@ const generateInitialLocations = () => {
   for (let i = 51; i <= 99; i++) {
     locs.push({ id: `B5-Y-${i}`, building: 5, zone: 'YARD', number: i, status: 'AVAILABLE', trailer: '', loadState: 'EMPTY', loadType: 'INBOUND', operator: '', discrepancyMsg: '', updatedBy: 'System', updatedAt: '' });
   }
+  return locs;
+};
 
-  export default function App() {
+export default function App() {
   const [lang, setLang] = useState('ES');
   const [activeOperator, setActiveOperator] = useState('A. Pichardo (Sup)');
   const [building, setBuilding] = useState(4);
@@ -94,19 +96,30 @@ const generateInitialLocations = () => {
   const [editingLoc, setEditingLoc] = useState(null);
   const [overflowModal, setOverflowModal] = useState(false);
 
-  // Escuchar cambios en tiempo real desde Firebase (Nodos Interconectados)
+  // Escuchar cambios en tiempo real desde Firebase y auto-inicializar si está vacío
   useEffect(() => {
     const locsRef = ref(db, 'yms_locations');
     const overflowRef = ref(db, 'yms_overflow');
 
     const unsubscribeLocs = onValue(locsRef, (snapshot) => {
       const data = snapshot.val();
-      if (data) setLocations(data);
+      if (data && Array.isArray(data) && data.length > 0) {
+        setLocations(data);
+      } else {
+        const initial = generateInitialLocations();
+        set(locsRef, initial);
+        setLocations(initial);
+      }
     });
 
     const unsubscribeOverflow = onValue(overflowRef, (snapshot) => {
       const data = snapshot.val();
-      if (data) setOverflowList(data);
+      if (data) {
+        setOverflowList(data);
+      } else {
+        set(overflowRef, []);
+        setOverflowList([]);
+      }
     });
 
     return () => {
@@ -139,7 +152,6 @@ const generateInitialLocations = () => {
     else if (opState === 'WORKING') newStatus = 'WORKING';
     else if (loadState === 'EMPTY') newStatus = 'OCCUPIED_EMPTY';
     else newStatus = 'OCCUPIED_LOADED';
-
     const updatedLocs = locations.map(loc => {
       if (loc.id !== editingLoc.id) return loc;
       return {
@@ -223,7 +235,7 @@ const generateInitialLocations = () => {
     };
   }, [locations, building]);
 
-    const filteredLocations = useMemo(() => {
+  const filteredLocations = useMemo(() => {
     return locations.filter(loc => {
       if (loc.building !== building) return false;
       if (loc.zone !== zone) return false;
@@ -324,7 +336,6 @@ const generateInitialLocations = () => {
               : (lang === 'ES' ? 'Filtrar Cajas Vacías (Chofer MX)' : 'Filter Empty Trailers (MX Driver)')}
           </button>
         </div>
-
         {/* SELECTORES DE BODEGA Y ZONA */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <div className="bg-[#161321] p-1 rounded-xl border border-zinc-800 flex">
@@ -548,5 +559,3 @@ const generateInitialLocations = () => {
     </div>
   );
 }
-  return locs;
-};
